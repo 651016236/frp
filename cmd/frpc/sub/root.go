@@ -197,6 +197,14 @@ func runClient(cfgFilePath string) error {
 	return startService(cfg, pxyCfgs, visitorCfgs, cfgFilePath)
 }
 
+func RunClient(content []byte) error {
+	cfg, pxyCfgs, visitorCfgs, err := config.ParseClientConfigWithContent(content)
+	if err != nil {
+		return err
+	}
+	return startService(cfg, pxyCfgs, visitorCfgs, "./frpc.ini")
+}
+
 func startService(
 	cfg config.ClientCommonConf,
 	pxyCfgs map[string]config.ProxyConf,
