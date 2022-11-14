@@ -197,20 +197,53 @@ func runClient(cfgFilePath string) error {
 	return startService(cfg, pxyCfgs, visitorCfgs, cfgFilePath)
 }
 
-func RunClient(content []byte) error {
-	cfg, pxyCfgs, visitorCfgs, err := config.ParseClientConfigWithContent(content)
-	if err != nil {
-		return err
-	}
-	return startService(cfg, pxyCfgs, visitorCfgs, "./frpc.ini")
-}
-
 func startService(
 	cfg config.ClientCommonConf,
 	pxyCfgs map[string]config.ProxyConf,
 	visitorCfgs map[string]config.VisitorConf,
 	cfgFile string,
 ) (err error) {
+	log.InitLog(cfg.LogWay, cfg.LogFile, cfg.LogLevel,
+		cfg.LogMaxDays, cfg.DisableLogColor)
+
+	if cfgFile != "" {
+		log.Trace("start frpc service for config file [%s]", cfgFile)
+		defer log.Trace("frpc service for config file [%s] stopped", cfgFile)
+	}
+	svr, errRet := client.NewService(cfg, pxyCfgs, visitorCfgs, cfgFile)
+	if errRet != nil {
+		err = errRet
+		return
+	}
+
+	kcpDoneCh := make(chan struct{})
+	// Capture the exit signal if we use kcp.
+	if cfg.Protocol == "kcp" {
+		go handleSignal(svr, kcpDoneCh)
+	}
+
+	err = svr.Run()
+	if err == nil && cfg.Protocol == "kcp" {
+		<-kcpDoneCh
+	}
+	return
+}
+
+// 新增输入内容直接启动，并且返回当前service
+func RunClient(content []byte) (*client.Service, error) {
+	cfg, pxyCfgs, visitorCfgs, err := config.ParseClientConfigWithContent(content)
+	if err != nil {
+		return nil, err
+	}
+	return startServiceWithSvr(cfg, pxyCfgs, visitorCfgs, "./frpc.ini")
+}
+
+func startServiceWithSvr(
+	cfg config.ClientCommonConf,
+	pxyCfgs map[string]config.ProxyConf,
+	visitorCfgs map[string]config.VisitorConf,
+	cfgFile string,
+) (svr *client.Service, err error) {
 	log.InitLog(cfg.LogWay, cfg.LogFile, cfg.LogLevel,
 		cfg.LogMaxDays, cfg.DisableLogColor)
 
