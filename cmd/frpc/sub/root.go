@@ -263,7 +263,7 @@ func startServiceWithSvr(
 		go handleSignal(svr, kcpDoneCh)
 	}
 
-	err = svr.Run()
+	//err = svr.Run()
 	if err == nil && cfg.Protocol == "kcp" {
 		<-kcpDoneCh
 	}
